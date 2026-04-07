@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — FirewallAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:      #030a0e;
+    --panel:   #071218;
+    --panel2:  #0a1a22;
+    --border:  #0d3040;
+    --cyan:    #00e5ff;
+    --green:   #00ff88;
+    --red:     #ff2d55;
+    --yellow:  #ffd600;
+    --text:    #b0cdd8;
+    --dim:     #4a7080;
+    --mono:    'Share Tech Mono', monospace;
+    --hd:      'Orbitron', sans-serif;
+    --body:    'Rajdhani', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--body); min-height:100vh; }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image: linear-gradient(rgba(0,229,255,.025) 1px,transparent 1px),
+                      linear-gradient(90deg,rgba(0,229,255,.025) 1px,transparent 1px);
+    background-size:40px 40px; pointer-events:none; z-index:0;
+  }
+
+  /* ── LAYOUT ── */
+  .shell { display:flex; min-height:100vh; position:relative; z-index:1; }
+
+  /* ── SIDEBAR ── */
+  aside {
+    width:220px; flex-shrink:0;
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    padding:0;
+    display:flex; flex-direction:column;
+  }
+  .brand {
+    padding:20px 18px;
+    font-family:var(--hd); font-size:.8rem; color:var(--cyan);
+    letter-spacing:2px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:8px;
+  }
+  .brand span { color:var(--green); }
+  nav a {
+    display:flex; align-items:center; gap:10px;
+    padding:13px 18px;
+    font-family:var(--mono); font-size:.7rem;
+    color:var(--dim); text-decoration:none;
+    letter-spacing:1px; border-left:2px solid transparent;
+    transition:all .15s;
+  }
+  nav a:hover, nav a.active {
+    color:var(--cyan); border-left-color:var(--cyan);
+    background:rgba(0,229,255,.04);
+  }
+  .sidebar-footer {
+    margin-top:auto; padding:16px 18px;
+    font-family:var(--mono); font-size:.6rem; color:var(--dim);
+    border-top:1px solid var(--border);
+  }
+
+  /* ── MAIN ── */
+  main { flex:1; padding:28px 32px; overflow-y:auto; }
+
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:28px;
+  }
+  .page-title { font-family:var(--hd); font-size:.9rem; color:#fff; letter-spacing:3px; }
+  .status-dot {
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:.65rem; color:var(--green);
+  }
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--green); animation:blink 1.5s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── METRIC CARDS ── */
+  .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+  .metric {
+    background:var(--panel); border:1px solid var(--border);
+    padding:18px 16px; position:relative; overflow:hidden;
+  }
+  .metric::after {
+    content:''; position:absolute; bottom:0; left:0;
+    width:100%; height:2px; background:var(--cyan); transform:scaleX(0);
+    transform-origin:left; transition:transform .4s;
+  }
+  .metric.updated::after { transform:scaleX(1); }
+  .metric-val { font-family:var(--hd); font-size:1.8rem; font-weight:900; color:var(--cyan); }
+  .metric-val.green { color:var(--green); }
+  .metric-val.red   { color:var(--red); }
+  .metric-val.yellow{ color:var(--yellow); }
+  .metric-label { font-family:var(--mono); font-size:.6rem; color:var(--dim); margin-top:4px; }
+
+  /* ── SECTIONS ── */
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:20px; }
+  .card {
+    background:var(--panel); border:1px solid var(--border);
+    padding:20px;
+  }
+  .card-title {
+    font-family:var(--mono); font-size:.65rem; color:var(--dim);
+    letter-spacing:2px; margin-bottom:16px; padding-bottom:12px;
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+
+  /* ── RULE TABLE ── */
+  .rule-table { width:100%; border-collapse:collapse; font-family:var(--mono); }
+  .rule-table th {
+    font-size:.6rem; color:var(--dim); letter-spacing:1px;
+    padding:8px 10px; border-bottom:1px solid var(--border); text-align:left;
+  }
+  .rule-table td { font-size:.75rem; padding:9px 10px; border-bottom:1px solid rgba(13,48,64,.4); }
+  .rule-table tr:hover td { background:rgba(0,229,255,.03); }
+  .tag {
+    padding:2px 8px; font-size:.6rem; border-radius:2px;
+  }
+  .tag-allow  { background:rgba(0,255,136,.12); color:var(--green); }
+  .tag-deny   { background:rgba(255,45,85,.12);  color:var(--red); }
+  .tag-flag   { background:rgba(255,214,0,.12);   color:var(--yellow); }
+  .tag-clean  { background:rgba(0,229,255,.1);    color:var(--cyan); }
+
+  /* ── INPUTS ── */
+  .form-row { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  input[type=number], input[type=text], select {
+    background:var(--panel2); border:1px solid var(--border);
+    color:var(--text); font-family:var(--mono); font-size:.75rem;
+    padding:8px 12px; flex:1; min-width:80px;
+    outline:none; transition:border-color .2s;
+  }
+  input:focus, select:focus { border-color:var(--cyan); }
+  label { font-family:var(--mono); font-size:.6rem; color:var(--dim); display:block; margin-bottom:4px; }
+
+  .btn {
+    font-family:var(--hd); font-size:.65rem; font-weight:700; letter-spacing:2px;
+    padding:10px 20px; border:none; cursor:pointer; transition:all .2s;
+    clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+  }
+  .btn-cyan  { background:var(--cyan); color:#000; }
+  .btn-cyan:hover  { background:#fff; }
+  .btn-green { background:var(--green); color:#000; }
+  .btn-green:hover { background:#fff; }
+  .btn-red   { background:var(--red); color:#fff; }
+  .btn-sm { padding:6px 14px; font-size:.6rem; }
+
+  /* ── FILE UPLOAD ── */
+  .upload-zone {
+    border:1px dashed var(--border); padding:24px;
+    text-align:center; cursor:pointer; transition:border-color .2s;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color:var(--cyan); }
+  .upload-zone p { font-family:var(--mono); font-size:.7rem; color:var(--dim); margin-top:8px; }
+
+  /* ── CHART ── */
+  .chart-wrap { height:180px; position:relative; }
+
+  /* ── TERMINAL LOG ── */
+  .terminal {
+    background:#000; border:1px solid var(--border);
+    padding:14px; height:140px; overflow-y:auto;
+    font-family:var(--mono); font-size:.7rem; line-height:1.8;
+  }
+  .log-ok     { color:var(--green); }
+  .log-warn   { color:var(--yellow); }
+  .log-err    { color:var(--red); }
+  .log-info   { color:var(--cyan); }
+  .log-dim    { color:var(--dim); }
+
+  /* ── SEARCH RESULT ── */
+  .result-box {
+    background:var(--panel2); border:1px solid var(--border);
+    padding:14px; font-family:var(--mono); font-size:.75rem;
+    min-height:60px; white-space:pre-wrap;
+  }
+
+  /* scroll */
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border); }
+
+  @media(max-width:900px){ .metrics{grid-template-columns:1fr 1fr;} .grid2,.grid3{grid-template-columns:1fr;} aside{display:none;} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="brand">🛡 FIREWALL<span>AI</span></div>
+    <nav>
+      <a href="/" class="active">⬡ DASHBOARD</a>
+      <a href="#rules-section">⬡ RULES</a>
+      <a href="#ai-section">⬡ AI MODULE</a>
+      <a href="#search-section">⬡ PACKET SEARCH</a>
+      <a href="#chart-section">⬡ ANALYTICS</a>
+    </nav>
+    <div class="sidebar-footer">
+      DAA + AI + CLOUD<br>
+      Flask v2.3 · Python 3
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="page-title">OPTIMIZATION DASHBOARD</div>
+      <div class="status-dot"><div class="dot"></div> SYSTEM ONLINE</div>
+    </div>
+
+    <!-- METRICS -->
+    <div class="metrics" id="metrics">
+      <div class="metric" id="m-orig">
+        <div class="metric-val yellow" id="val-orig">—</div>
+        <div class="metric-label">ORIGINAL RULES</div>
+      </div>
+      <div class="metric" id="m-opt">
+        <div class="metric-val green" id="val-opt">—</div>
+        <div class="metric-label">OPTIMIZED RULES</div>
+      </div>
+      <div class="metric" id="m-red">
+        <div class="metric-val cyan" id="val-red">—</div>
+        <div class="metric-label">REDUCTION %</div>
+      </div>
+      <div class="metric" id="m-flag">
+        <div class="metric-val red" id="val-flag">—</div>
+        <div class="metric-label">AI FLAGGED</div>
+      </div>
+    </div>
+
+    <!-- RULE INPUT + FILE UPLOAD -->
+    <div id="rules-section" class="grid2" style="margin-bottom:20px">
+
+      <!-- Add Rule -->
+      <div class="card">
+        <div class="card-title">ADD FIREWALL RULE <span id="rule-count" style="color:var(--cyan)">0 RULES</span></div>
+        <div class="form-row">
+          <div style="flex:1">
+            <label>START IP</label>
+            <input type="number" id="in-start" placeholder="e.g. 10" min="0" max="255">
+          </div>
+          <div style="flex:1">
+            <label>END IP</label>
+            <input type="number" id="in-end" placeholder="e.g. 100" min="0" max="255">
+          </div>
+          <div style="flex:1">
+            <label>PORT</label>
+            <input type="number" id="in-port" placeholder="e.g. 80" min="1" max="65535">
+          </div>
+          <div style="flex:1">
+            <label>ACTION</label>
+            <select id="in-action">
+              <option value="ALLOW">ALLOW</option>
+              <option value="DENY">DENY</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <button class="btn btn-cyan" onclick="addRule()">+ ADD RULE</button>
+          <button class="btn btn-green" onclick="loadDemo()">LOAD DEMO</button>
+          <button class="btn btn-red btn-sm" onclick="clearRules()">CLEAR</button>
+        </div>
+      </div>
+
+      <!-- CSV Upload -->
+      <div class="card">
+        <div class="card-title">UPLOAD CSV</div>
+        <div class="upload-zone" id="drop-zone" onclick="document.getElementById('csv-input').click()">
+          <div style="font-size:1.4rem">📁</div>
+          <p>Click or drag-drop CSV file<br>Format: start_ip, end_ip, port, action</p>
+          <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="uploadCSV(this)">
+        </div>
+      </div>
+    </div>
+
+    <!-- RULE TABLE -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">
+        CURRENT RULES
+        <button class="btn btn-cyan btn-sm" onclick="optimizeRules()">⚡ OPTIMIZE NOW</button>
+      </div>
+      <div style="overflow-x:auto; max-height:280px; overflow-y:auto">
+        <table class="rule-table">
+          <thead>
+            <tr><th>#</th><th>START IP</th><th>END IP</th><th>PORT</th><th>ACTION</th><th>AI FLAG</th><th>DEL</th></tr>
+          </thead>
+          <tbody id="rule-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--dim);padding:24px">No rules yet — add rules or load demo</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AI + SEARCH + LOG -->
+    <div class="grid3" id="ai-section">
+
+      <!-- AI Training -->
+      <div class="card">
+        <div class="card-title">AI MODULE</div>
+        <p style="font-family:var(--mono);font-size:.68rem;color:var(--dim);margin-bottom:14px">Train Decision Tree on current rules to detect conflicts & redundancy patterns.</p>
+        <button class="btn btn-cyan" style="width:100%;margin-bottom:12px" onclick="trainAI()">🤖 TRAIN MODEL</button>
+        <div id="ai-result" style="font-family:var(--mono);font-size:.75rem;color:var(--dim)">Model not trained yet</div>
+      </div>
+
+      <!-- Packet Search -->
+      <div class="card" id="search-section">
+        <div class="card-title">PACKET SEARCH (O log n)</div>
+        <div class="form-row" style="margin-bottom:10px">
+          <div style="flex:1"><label>IP</label><input type="number" id="pkt-ip" placeholder="IP inside rule range"></div>
+          <div style="flex:1"><label>PORT</label><input type="number" id="pkt-port" placeholder="e.g. 80"></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+          <button class="btn btn-green btn-sm" onclick="searchPacket()">SEARCH</button>
+          <button class="btn btn-sm" style="background:var(--panel2);color:var(--dim);border:1px solid var(--border)" onclick="quickFill(350,80)">350/80</button>
+          <button class="btn btn-sm" style="background:var(--panel2);color:var(--dim);border:1px solid var(--border)" onclick="quickFill(520,443)">520/443</button>
+          <button class="btn btn-sm" style="background:var(--panel2);color:var(--cyan);border:1px solid var(--border)" onclick="autoFill()">AUTO-FILL</button>
+        </div>
+        <div class="result-box" id="search-result">Enter IP inside a rule range. e.g. if rule is 300-400 port 80, try IP=350 port=80</div>
+      </div>
+
+      <!-- Terminal Log -->
+      <div class="card">
+        <div class="card-title">SYSTEM LOG</div>
+        <div class="terminal" id="terminal">
+          <span class="log-info">[SYS]</span> <span class="log-ok">FirewallAI dashboard loaded</span><br>
+          <span class="log-dim">[INF]</span> Awaiting rules input...<br>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CHARTS -->
+    <div class="grid2" id="chart-section">
+      <div class="card">
+        <div class="card-title">RULE COUNT: BEFORE vs AFTER</div>
+        <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">COMPLEXITY COMPARISON</div>
+        <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let rules = [];
+let optimizedRules = [];
+let barChart, lineChart;
+
+// ── Quick fill helpers for packet search ─────────────────────────────────────
+function quickFill(ip, port) {
+  document.getElementById('pkt-ip').value   = ip;
+  document.getElementById('pkt-port').value = port;
+  log(`Quick-fill: IP=${ip} PORT=${port}`, 'dim');
+}
+function autoFill() {
+  const data = optimizedRules.length ? optimizedRules : rules;
+  if (!data.length) { log('Load rules first, then click AUTO-FILL', 'warn'); return; }
+  // pick midpoint of first rule range as example IP
+  const r    = data[0];
+  const mid  = Math.floor((r.start_ip + r.end_ip) / 2);
+  document.getElementById('pkt-ip').value   = mid;
+  document.getElementById('pkt-port').value = r.port;
+  log(`Auto-filled: IP=${mid} PORT=${r.port}  (from rule ${r.start_ip}–${r.end_ip})`, 'ok');
+}
+
+// ── Chart Setup ──────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const gridColor = 'rgba(13,48,64,.5)';
+  const tickColor = '#4a7080';
+
+  barChart = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Original', 'Optimized'],
+      datasets: [{
+        label: 'Rules',
+        data: [0, 0],
+        backgroundColor: ['rgba(255,214,0,.25)', 'rgba(0,255,136,.25)'],
+        borderColor:      ['#ffd600', '#00ff88'],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: "'Share Tech Mono'" } } },
+        y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: "'Share Tech Mono'" } } }
+      }
+    }
+  });
+
+  lineChart = new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: {
+      labels: [1,2,4,8,16,32,64,128,256],
+      datasets: [
+        {
+          label: 'Linear O(n)',
+          data: [1,2,4,8,16,32,64,128,256],
+          borderColor: '#ff2d55', borderWidth:1.5, pointRadius:2, fill:false, tension:.3
+        },
+        {
+          label: 'Binary O(log n)',
+          data: [0,1,2,3,4,5,6,7,8],
+          borderColor: '#00ff88', borderWidth:1.5, pointRadius:2, fill:false, tension:.3
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: tickColor, font: { family: "'Share Tech Mono'", size:10 } } } },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: tickColor } },
+        y: { grid: { color: gridColor }, ticks: { color: tickColor } }
+      }
+    }
+  });
+});
+
+// ── Logging ──────────────────────────────────────────────────────────────────
+function log(msg, type='info') {
+  const term = document.getElementById('terminal');
+  const cls = { info:'log-info', ok:'log-ok', warn:'log-warn', err:'log-err', dim:'log-dim' }[type] || 'log-dim';
+  const prefix = { info:'[INF]', ok:'[OK ]', warn:'[WRN]', err:'[ERR]', dim:'[SYS]' }[type] || '[   ]';
+  term.innerHTML += `<span class="${cls}">${prefix}</span> ${msg}<br>`;
+  term.scrollTop = term.scrollHeight;
+}
+
+// ── Render Rules Table ───────────────────────────────────────────────────────
+function renderTable(data, showFlags) {
+  const tbody = document.getElementById('rule-tbody');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--dim);padding:24px">No rules yet</td></tr>`;
+    document.getElementById('rule-count').textContent = '0 RULES';
+    return;
+  }
+  document.getElementById('rule-count').textContent = `${data.length} RULES`;
+  tbody.innerHTML = data.map((r, i) => `
+    <tr>
+      <td style="color:var(--dim)">${i + 1}</td>
+      <td>${r.start_ip}</td>
+      <td>${r.end_ip}</td>
+      <td>${r.port}</td>
+      <td><span class="tag ${r.action === 'ALLOW' ? 'tag-allow' : 'tag-deny'}">${r.action}</span></td>
+      <td>${showFlags
+        ? (r.ai_flag ? '<span class="tag tag-flag">⚠ FLAGGED</span>' : '<span class="tag tag-clean">✓ CLEAN</span>')
+        : '<span class="tag" style="color:var(--dim)">—</span>'}</td>
+      <td><button class="btn btn-red btn-sm" onclick="deleteRule(${i})" style="padding:3px 8px;font-size:.55rem">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+// ── Add Rule ─────────────────────────────────────────────────────────────────
+function addRule() {
+  const sVal = document.getElementById('in-start').value.trim();
+  const eVal = document.getElementById('in-end').value.trim();
+  const pVal = document.getElementById('in-port').value.trim();
+  const a    = document.getElementById('in-action').value;
+  if (sVal === '' || eVal === '' || pVal === '') { log('Fill all fields (Start IP, End IP, Port)', 'warn'); return; }
+  const s = parseInt(sVal), e = parseInt(eVal), p = parseInt(pVal);
+  if (isNaN(s) || isNaN(e) || isNaN(p)) { log('IPs and Port must be numbers', 'err'); return; }
+  if (s > e) { log('start_ip must be ≤ end_ip', 'err'); return; }
+  if (p < 1 || p > 65535) { log('Port must be 1–65535', 'err'); return; }
+  rules.push({ start_ip: s, end_ip: e, port: p, action: a });
+  optimizedRules = [];   // reset optimized when rules change
+  renderTable(rules, false);
+  log(`Rule added: ${s}–${e} port ${p} → ${a}  (total: ${rules.length})`, 'ok');
+}
+
+function deleteRule(i) {
+  const r = rules[i];
+  rules.splice(i, 1);
+  optimizedRules = [];
+  renderTable(rules, false);
+  log(`Rule #${i+1} deleted (${r.start_ip}–${r.end_ip}:${r.port})`, 'dim');
+}
+
+function clearRules() {
+  const n = rules.length;
+  rules = []; optimizedRules = [];
+  renderTable([], false);
+  updateMetrics(null);
+  log(`Cleared ${n} rules`, 'warn');
+}
+
+// ── Demo Data (appends, does NOT replace existing rules) ─────────────────────
+function loadDemo() {
+  const demo = [
+    {start_ip:300, end_ip:400, port:80,   action:'ALLOW'},
+    {start_ip:310, end_ip:370, port:80,   action:'DENY'},
+    {start_ip:500, end_ip:600, port:443,  action:'ALLOW'},
+    {start_ip:520, end_ip:580, port:443,  action:'DENY'},
+    {start_ip:700, end_ip:800, port:22,   action:'ALLOW'},
+    {start_ip:720, end_ip:780, port:22,   action:'DENY'},
+    {start_ip:900, end_ip:1000,port:8080, action:'ALLOW'},
+    {start_ip:910, end_ip:980, port:8080, action:'DENY'},
+    {start_ip:1100,end_ip:1200,port:443,  action:'ALLOW'},
+    {start_ip:1110,end_ip:1180,port:443,  action:'DENY'},
+  ];
+  rules = rules.concat(demo);
+  optimizedRules = [];
+  renderTable(rules, false);
+  log(`Demo appended: +10 rules  (total: ${rules.length})`, 'ok');
+}
+
+// ── Update Metrics ───────────────────────────────────────────────────────────
+function updateMetrics(stats) {
+  if (!stats) {
+    ['val-orig','val-opt','val-red','val-flag'].forEach(id => document.getElementById(id).textContent = '—');
+    return;
+  }
+  document.getElementById('val-orig').textContent = stats.original_count;
+  document.getElementById('val-opt').textContent  = stats.optimized_count;
+  document.getElementById('val-red').textContent  = stats.reduction_pct + '%';
+  document.getElementById('val-flag').textContent = stats.flagged_count;
+
+  // animate
+  ['m-orig','m-opt','m-red','m-flag'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.add('updated');
+    setTimeout(() => el.classList.remove('updated'), 1500);
+  });
+
+  // update bar chart
+  barChart.data.datasets[0].data = [stats.original_count, stats.optimized_count];
+  barChart.update();
+}
+
+// ── Optimize ─────────────────────────────────────────────────────────────────
+async function optimizeRules() {
+  if (!rules.length) { log('No rules to optimize', 'warn'); return; }
+  log('Running Merge Sort + Greedy optimization…', 'info');
+  try {
+    const res  = await fetch('/api/optimize', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ rules })
+    });
+    const data = await res.json();
+    optimizedRules = data.rules;
+    renderTable(optimizedRules, true);
+    updateMetrics(data.stats);
+    log(`Optimization complete. ${data.stats.original_count} → ${data.stats.optimized_count} rules (−${data.stats.reduction_pct}%)`, 'ok');
+    log(`AI flagged ${data.stats.flagged_count} suspicious rules`, data.stats.flagged_count ? 'warn' : 'ok');
+  } catch(err) {
+    log('Optimize API error: ' + err.message, 'err');
+  }
+}
+
+// ── Train AI ─────────────────────────────────────────────────────────────────
+async function trainAI() {
+  const data = (optimizedRules.length ? optimizedRules : rules);
+  if (!data.length) { log('Load rules before training', 'warn'); return; }
+  log('Training Decision Tree classifier…', 'info');
+  document.getElementById('ai-result').textContent = 'Training...';
+  try {
+    const res  = await fetch('/api/train', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ rules: data })
+    });
+    const json = await res.json();
+    document.getElementById('ai-result').innerHTML =
+      `<span style="color:var(--green)">✓ Trained</span> — Accuracy: <span style="color:var(--cyan)">${json.accuracy}%</span>`;
+    log(`AI model trained — accuracy: ${json.accuracy}%`, 'ok');
+  } catch(err) {
+    document.getElementById('ai-result').textContent = 'Training failed';
+    log('AI train error: ' + err.message, 'err');
+  }
+}
+
+// ── Packet Search ────────────────────────────────────────────────────────────
+async function searchPacket() {
+  const ipVal   = document.getElementById('pkt-ip').value.trim();
+  const portVal = document.getElementById('pkt-port').value.trim();
+  if (ipVal === '' || portVal === '') { log('Enter both IP and Port', 'warn'); return; }
+  const ip   = parseInt(ipVal);
+  const port = parseInt(portVal);
+  if (isNaN(ip) || isNaN(port)) { log('IP and Port must be numbers', 'err'); return; }
+  const data = optimizedRules.length ? optimizedRules : rules;
+  if (!data.length) { log('Load or optimize rules first', 'warn'); return; }
+  log(`Binary search: IP=${ip} PORT=${port}  (searching ${data.length} rules)`, 'info');
+  try {
+    const res  = await fetch('/api/search', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ rules: data, packet: { ip, port } })
+    });
+    const json = await res.json();
+    const box  = document.getElementById('search-result');
+    if (json.matched) {
+      const isAllow = json.matched.action === 'ALLOW';
+      box.style.color = isAllow ? 'var(--green)' : 'var(--red)';
+      box.textContent = `MATCH FOUND\n\nIP Range : ${json.matched.start_ip} – ${json.matched.end_ip}\nPort     : ${json.matched.port}\nAction   : ${json.matched.action}`;
+      log(`Packet matched → ${json.matched.action}  (range ${json.matched.start_ip}–${json.matched.end_ip})`, isAllow ? 'ok' : 'warn');
+    } else {
+      box.style.color = 'var(--dim)';
+      box.textContent = `NO MATCH FOUND\n\nIP ${ip} / Port ${port} does not\nfall within any rule range.\n\nTip: use an IP within a loaded rule range.`;
+      log(`No rule matches IP=${ip} PORT=${port}`, 'dim');
+    }
+  } catch(err) {
+    log('Search error: ' + err.message, 'err');
+  }
+}
+
+// ── CSV Upload (APPENDS to existing rules) ────────────────────────────────────
+async function uploadCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  log(`Reading ${file.name}…`, 'info');
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res  = await fetch('/api/upload', { method:'POST', body: fd });
+    if (!res.ok) { log('Server error: ' + res.status, 'err'); return; }
+    const json = await res.json();
+    if (json.error) { log('Upload error: ' + json.error, 'err'); return; }
+    const before = rules.length;
+    rules = rules.concat(json.rules);   // APPEND — keeps any existing rules
+    optimizedRules = [];
+    renderTable(rules, false);
+    log(`CSV loaded: +${json.count} rules  (was ${before}, now ${rules.length} total)`, 'ok');
+    input.value = '';  // reset so same file can be re-uploaded
+  } catch(err) {
+    log('Upload failed: ' + err.message, 'err');
+  }
+}
+
+// ── Drag & Drop ───────────────────────────────────────────────────────────────
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const dt  = new DataTransfer();
+    dt.items.add(file);
+    const inp = document.getElementById('csv-input');
+    inp.files = dt.files;
+    uploadCSV(inp);
+  }
+});
+</script>
+</body>
+</html>
