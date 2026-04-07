@@ -318,6 +318,7 @@
       <div class="card" id="search-section">
         <div class="card-title">PACKET SEARCH (O log n)</div>
         <div class="form-row" style="margin-bottom:10px">
+<<<<<<< HEAD
           <div style="flex:1"><label>IP</label><input type="number" id="pkt-ip" placeholder="IP inside rule range"></div>
           <div style="flex:1"><label>PORT</label><input type="number" id="pkt-port" placeholder="e.g. 80"></div>
         </div>
@@ -328,6 +329,13 @@
           <button class="btn btn-sm" style="background:var(--panel2);color:var(--cyan);border:1px solid var(--border)" onclick="autoFill()">AUTO-FILL</button>
         </div>
         <div class="result-box" id="search-result">Enter IP inside a rule range. e.g. if rule is 300-400 port 80, try IP=350 port=80</div>
+=======
+          <div style="flex:1"><label>IP</label><input type="number" id="pkt-ip" placeholder="e.g. 25"></div>
+          <div style="flex:1"><label>PORT</label><input type="number" id="pkt-port" placeholder="e.g. 80"></div>
+        </div>
+        <button class="btn btn-green btn-sm" style="margin-bottom:10px" onclick="searchPacket()">SEARCH</button>
+        <div class="result-box" id="search-result">Result will appear here...</div>
+>>>>>>> 5f386036ed9aea6f2f700db04fe306ea016f5c31
       </div>
 
       <!-- Terminal Log -->
@@ -362,6 +370,7 @@ let rules = [];
 let optimizedRules = [];
 let barChart, lineChart;
 
+<<<<<<< HEAD
 // ── Quick fill helpers for packet search ─────────────────────────────────────
 function quickFill(ip, port) {
   document.getElementById('pkt-ip').value   = ip;
@@ -379,6 +388,8 @@ function autoFill() {
   log(`Auto-filled: IP=${mid} PORT=${r.port}  (from rule ${r.start_ip}–${r.end_ip})`, 'ok');
 }
 
+=======
+>>>>>>> 5f386036ed9aea6f2f700db04fe306ea016f5c31
 // ── Chart Setup ──────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   const gridColor = 'rgba(13,48,64,.5)';
@@ -469,6 +480,7 @@ function renderTable(data, showFlags) {
 
 // ── Add Rule ─────────────────────────────────────────────────────────────────
 function addRule() {
+<<<<<<< HEAD
   const sVal = document.getElementById('in-start').value.trim();
   const eVal = document.getElementById('in-end').value.trim();
   const pVal = document.getElementById('in-port').value.trim();
@@ -518,6 +530,48 @@ function loadDemo() {
   optimizedRules = [];
   renderTable(rules, false);
   log(`Demo appended: +10 rules  (total: ${rules.length})`, 'ok');
+=======
+  const s = +document.getElementById('in-start').value;
+  const e = +document.getElementById('in-end').value;
+  const p = +document.getElementById('in-port').value;
+  const a = document.getElementById('in-action').value;
+  if (!s && s !== 0 || !e || !p) { log('Fill all fields', 'warn'); return; }
+  if (s > e) { log('start_ip must be ≤ end_ip', 'err'); return; }
+  rules.push({ start_ip: s, end_ip: e, port: p, action: a });
+  renderTable(rules, false);
+  log(`Added rule: ${s}–${e}:${p} ${a}`, 'ok');
+}
+
+function deleteRule(i) {
+  rules.splice(i, 1);
+  renderTable(rules, false);
+  log('Rule deleted', 'dim');
+}
+
+function clearRules() {
+  rules = []; optimizedRules = [];
+  renderTable([], false);
+  updateMetrics(null);
+  log('Rules cleared', 'warn');
+}
+
+// ── Demo Data ────────────────────────────────────────────────────────────────
+function loadDemo() {
+  rules = [
+    {start_ip:10, end_ip:100, port:80,   action:'ALLOW'},
+    {start_ip:20, end_ip:40,  port:80,   action:'DENY'},
+    {start_ip:50, end_ip:60,  port:443,  action:'ALLOW'},
+    {start_ip:50, end_ip:60,  port:443,  action:'ALLOW'},
+    {start_ip:10, end_ip:200, port:22,   action:'DENY'},
+    {start_ip:30, end_ip:50,  port:22,   action:'ALLOW'},
+    {start_ip:70, end_ip:90,  port:8080, action:'ALLOW'},
+    {start_ip:70, end_ip:90,  port:8080, action:'DENY'},
+    {start_ip:100,end_ip:150, port:80,   action:'ALLOW'},
+    {start_ip:110,end_ip:130, port:80,   action:'DENY'},
+  ];
+  renderTable(rules, false);
+  log(`Demo loaded: ${rules.length} rules`, 'ok');
+>>>>>>> 5f386036ed9aea6f2f700db04fe306ea016f5c31
 }
 
 // ── Update Metrics ───────────────────────────────────────────────────────────
@@ -586,6 +640,7 @@ async function trainAI() {
   }
 }
 
+<<<<<<< HEAD
 // ── Packet Search ────────────────────────────────────────────────────────────
 async function searchPacket() {
   const ipVal   = document.getElementById('pkt-ip').value.trim();
@@ -597,6 +652,16 @@ async function searchPacket() {
   const data = optimizedRules.length ? optimizedRules : rules;
   if (!data.length) { log('Load or optimize rules first', 'warn'); return; }
   log(`Binary search: IP=${ip} PORT=${port}  (searching ${data.length} rules)`, 'info');
+=======
+// ── Packet Search ─────────────────────────────────────────────────────────────
+async function searchPacket() {
+  const ip   = +document.getElementById('pkt-ip').value;
+  const port = +document.getElementById('pkt-port').value;
+  if (!port) { log('Enter IP and port', 'warn'); return; }
+  const data = optimizedRules.length ? optimizedRules : rules;
+  if (!data.length) { log('Optimize rules first', 'warn'); return; }
+  log(`Binary search: IP=${ip} PORT=${port}`, 'info');
+>>>>>>> 5f386036ed9aea6f2f700db04fe306ea016f5c31
   try {
     const res  = await fetch('/api/search', {
       method: 'POST',
@@ -606,6 +671,7 @@ async function searchPacket() {
     const json = await res.json();
     const box  = document.getElementById('search-result');
     if (json.matched) {
+<<<<<<< HEAD
       const isAllow = json.matched.action === 'ALLOW';
       box.style.color = isAllow ? 'var(--green)' : 'var(--red)';
       box.textContent = `MATCH FOUND\n\nIP Range : ${json.matched.start_ip} – ${json.matched.end_ip}\nPort     : ${json.matched.port}\nAction   : ${json.matched.action}`;
@@ -614,21 +680,39 @@ async function searchPacket() {
       box.style.color = 'var(--dim)';
       box.textContent = `NO MATCH FOUND\n\nIP ${ip} / Port ${port} does not\nfall within any rule range.\n\nTip: use an IP within a loaded rule range.`;
       log(`No rule matches IP=${ip} PORT=${port}`, 'dim');
+=======
+      box.style.color = json.matched.action === 'ALLOW' ? 'var(--green)' : 'var(--red)';
+      box.textContent = `MATCH FOUND\n\nIP Range : ${json.matched.start_ip} – ${json.matched.end_ip}\nPort     : ${json.matched.port}\nAction   : ${json.matched.action}`;
+      log(`Packet matched: ${json.matched.action}`, json.matched.action === 'ALLOW' ? 'ok' : 'warn');
+    } else {
+      box.style.color = 'var(--dim)';
+      box.textContent = 'NO MATCH FOUND\nPacket does not match any rule.';
+      log('Packet: no match', 'dim');
+>>>>>>> 5f386036ed9aea6f2f700db04fe306ea016f5c31
     }
   } catch(err) {
     log('Search error: ' + err.message, 'err');
   }
 }
 
+<<<<<<< HEAD
 // ── CSV Upload (APPENDS to existing rules) ────────────────────────────────────
 async function uploadCSV(input) {
   const file = input.files[0];
   if (!file) return;
   log(`Reading ${file.name}…`, 'info');
+=======
+// ── CSV Upload ────────────────────────────────────────────────────────────────
+async function uploadCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  log(`Uploading ${file.name}…`, 'info');
+>>>>>>> 5f386036ed9aea6f2f700db04fe306ea016f5c31
   const fd = new FormData();
   fd.append('file', file);
   try {
     const res  = await fetch('/api/upload', { method:'POST', body: fd });
+<<<<<<< HEAD
     if (!res.ok) { log('Server error: ' + res.status, 'err'); return; }
     const json = await res.json();
     if (json.error) { log('Upload error: ' + json.error, 'err'); return; }
@@ -640,6 +724,14 @@ async function uploadCSV(input) {
     input.value = '';  // reset so same file can be re-uploaded
   } catch(err) {
     log('Upload failed: ' + err.message, 'err');
+=======
+    const json = await res.json();
+    rules = json.rules;
+    renderTable(rules, false);
+    log(`CSV imported: ${json.count} rules`, 'ok');
+  } catch(err) {
+    log('Upload error: ' + err.message, 'err');
+>>>>>>> 5f386036ed9aea6f2f700db04fe306ea016f5c31
   }
 }
 
